@@ -7,17 +7,15 @@ using System.Threading.Tasks;
 
 namespace E_Commerce.Data.Models.Identity
 {
-    public class AppUser : IdentityUser<int>
+    public class AppRole : IdentityRole<int>
     {
-        public AppUser(): base()
+        public AppRole() : base()
         {
 
         }
-        public AppUser(string userName) : base(userName)
+        public AppRole(string roleName) : base(roleName)
         {
 
         }
-        public string Name { get; set; }
-        public string Surname { get; set; }
     }
 }
