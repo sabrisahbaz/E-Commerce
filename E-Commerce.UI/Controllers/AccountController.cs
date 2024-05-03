@@ -7,16 +7,50 @@ namespace E_Commerce.UI.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly AspNetUserManager<AppUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
         private readonly RoleManager<AppRole> _roleManager;
 
-        public AccountController(AspNetUserManager<AppUser> userManager, SignInManager<AppUser> signInManager, RoleManager<AppRole> roleManager)
+        public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager, RoleManager<AppRole> roleManager)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
         }
+
+        public IActionResult Login()
+        {
+            if (User.Identity.Name != null)
+                return RedirectToAction("Index", "Home");
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Login(LoginViewModel login)
+        {
+            try
+            {
+                var user = await _userManager.FindByNameAsync(login.UserName);
+
+                if (user == null)
+                    user = await _userManager.FindByEmailAsync(login.UserName);
+
+                if (user != null)
+                {
+                    var result = await _signInManager.PasswordSignInAsync(user,login.Password,login.RememberMe,true);
+                    if(result.Succeeded)
+                        return RedirectToAction("Index", "Home");
+                }
+                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                return View(login);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, $"An error onccurred: {ex.Message}");
+                return View(login);
+            }
+        }
+        
         public IActionResult Register()
         {
             if (User.Identity.Name != null)
@@ -32,37 +66,44 @@ namespace E_Commerce.UI.Controllers
                 Surname = register.Surname,
                 UserName = register.Username,
                 Email = register.Email,
-
             };
+
             var result = await _userManager.CreateAsync(user, register.Password);
 
-            //ROle oluştur veya varsa al
+            //Role oluştur veya varsa al
             var roleExists = await _roleManager.RoleExistsAsync("Admin");
             AppRole role;
 
             if (!roleExists)
             {
-                //rolü oluştur
+                //Rolü oluştur
                 role = new AppRole("Admin");
+                await _roleManager.CreateAsync(role); 
             }
             else
             {
-                //Role Al
+                //Role al
                 role = await _roleManager.FindByNameAsync("Admin");
             }
-            //kullanıcıya rolü ata
+
+            //Kullanıcıya rolü ata
 
             await _userManager.AddToRoleAsync(user, role.Name);
+
             if (result.Succeeded)
                 return RedirectToAction("Login");
-            
+
             foreach (var error in result.Errors)
             {
                 ModelState.AddModelError("", error.Description);
             }
 
-            return View(register);
+            return View(register);  
         }
-
+        public async Task<IActionResult> Logout()
+        {
+            await _signInManager.SignOutAsync();
+            return RedirectToAction("Index", "Home");
+        }
     }
 }
